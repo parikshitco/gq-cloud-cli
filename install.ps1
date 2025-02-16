@@ -38,7 +38,7 @@ try {
         $WebClient.DownloadFile($ScriptUrl, $ScriptPath)
     }
     catch {
-        Write-Host "✗ Failed to download script: $_" -ForegroundColor Red
+        Write-Host "Error: Failed to download script: $_" -ForegroundColor Red
         exit 1
     }
 
@@ -50,15 +50,14 @@ try {
         Copy-Item $ScriptPath -Destination "C:\Windows\System32\gq-cloud.ps1" -Force
         
         # Create BAT wrapper
-        $BatContent = @"
+        @"
 @echo off
 powershell.exe -ExecutionPolicy Bypass -File "%~dp0gq-cloud.ps1" %*
-"@
-        $BatContent | Set-Content "C:\Windows\System32\gq-cloud.bat" -Force
+"@ | Set-Content "C:\Windows\System32\gq-cloud.bat" -Force
 
         # Verify installation
         if (Test-Path "C:\Windows\System32\gq-cloud.ps1") {
-            Write-Host "✓ Successfully installed gq-cloud" -ForegroundColor Green
+            Write-Host "Successfully installed gq-cloud" -ForegroundColor Green
             Write-Host "You can now use the" -NoNewline
             Write-Host " gq-cloud " -ForegroundColor Blue -NoNewline
             Write-Host "command from Command Prompt or PowerShell"
@@ -71,9 +70,13 @@ powershell.exe -ExecutionPolicy Bypass -File "%~dp0gq-cloud.ps1" %*
         }
     }
     catch {
-        Write-Host "✗ Failed to install: $_" -ForegroundColor Red
+        Write-Host "Error: Failed to install: $_" -ForegroundColor Red
         exit 1
     }
+}
+catch {
+    Write-Host "Error: Installation failed: $_" -ForegroundColor Red
+    exit 1
 }
 finally {
     # Cleanup
