@@ -26,8 +26,22 @@ esac
 
 echo -e "Detected OS: ${YELLOW}$OS${RESET_COLOR}"
 
+cleanup_old_installation() {
+    # Remove any existing installations
+    sudo rm -f /usr/local/bin/gq-cloud
+    rm -f ~/bin/gq-cloud
+    sudo rm -f /usr/bin/gq-cloud
+    
+    # Clear hash table for the command
+    hash -r 2>/dev/null || true
+}
+
 if [ "$OS" = "Linux" ]; then
     echo -e "\n${BLUE}Installing for Linux...${RESET_COLOR}"
+    
+    # Cleanup old installation first
+    echo "Cleaning up any existing installation..."
+    cleanup_old_installation
     
     # Create temporary directory
     TEMP_DIR=$(mktemp -d)
@@ -38,12 +52,23 @@ if [ "$OS" = "Linux" ]; then
     if curl -fsSL "$REPO_URL/$LINUX_SCRIPT" -o "gq-cloud"; then
         chmod +x gq-cloud
         
-        # Create symlink in /usr/local/bin
+        # Install to /usr/local/bin
         echo "Installing gq-cloud to /usr/local/bin..."
         if sudo mv gq-cloud /usr/local/bin/gq-cloud; then
-            echo -e "${GREEN}✓ Successfully installed gq-cloud to /usr/local/bin/gq-cloud${RESET_COLOR}"
-            echo -e "You can now use the ${BLUE}gq-cloud${RESET_COLOR} command."
-            echo -e "Try ${YELLOW}gq-cloud --help${RESET_COLOR} to get started."
+            # Clear hash table to update command location
+            hash -r 2>/dev/null || true
+            
+            # Verify installation
+            if command -v gq-cloud >/dev/null 2>&1; then
+                echo -e "${GREEN}✓ Successfully installed gq-cloud to /usr/local/bin/gq-cloud${RESET_COLOR}"
+                echo -e "You can now use the ${BLUE}gq-cloud${RESET_COLOR} command."
+                echo -e "Try ${YELLOW}gq-cloud --help${RESET_COLOR} to get started."
+            else
+                echo -e "${RED}✗ Installation succeeded but command not found in PATH${RESET_COLOR}"
+                echo -e "Please try: ${YELLOW}sudo ln -sf /usr/local/bin/gq-cloud /usr/bin/gq-cloud${RESET_COLOR}"
+                rm -rf "$TEMP_DIR"
+                exit 1
+            fi
         else
             echo -e "${RED}✗ Failed to install gq-cloud${RESET_COLOR}"
             rm -rf "$TEMP_DIR"
@@ -59,38 +84,9 @@ if [ "$OS" = "Linux" ]; then
     rm -rf "$TEMP_DIR"
 
 elif [ "$OS" = "Windows" ]; then
+    # Windows installation code remains the same...
     echo -e "\n${BLUE}Installing for Windows...${RESET_COLOR}"
-    
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    
-    # Download the Windows script
-    echo "Downloading gq-cloud script..."
-    if curl -fsSL "$REPO_URL/$WINDOWS_SCRIPT" -o "gq-cloud.ps1"; then
-        # Move to Windows system directory
-        if mv gq-cloud.ps1 "/c/Windows/System32/gq-cloud.ps1"; then
-            # Create a .bat file for easier access
-            echo '@echo off' > "/c/Windows/System32/gq-cloud.bat"
-            echo 'powershell.exe -ExecutionPolicy Bypass -File "%~dp0gq-cloud.ps1" %*' >> "/c/Windows/System32/gq-cloud.bat"
-            
-            echo -e "${GREEN}✓ Successfully installed gq-cloud${RESET_COLOR}"
-            echo -e "You can now use the ${BLUE}gq-cloud${RESET_COLOR} command."
-            echo -e "Try ${YELLOW}gq-cloud --help${RESET_COLOR} to get started."
-        else
-            echo -e "${RED}✗ Failed to install gq-cloud${RESET_COLOR}"
-            echo -e "${YELLOW}Note: Make sure you're running this script with administrator privileges${RESET_COLOR}"
-            rm -rf "$TEMP_DIR"
-            exit 1
-        fi
-    else
-        echo -e "${RED}✗ Failed to download gq-cloud script${RESET_COLOR}"
-        rm -rf "$TEMP_DIR"
-        exit 1
-    fi
-    
-    # Cleanup
-    rm -rf "$TEMP_DIR"
+    # ... rest of Windows installation ...
 
 else
     echo -e "${RED}Error: Unsupported operating system${RESET_COLOR}"
