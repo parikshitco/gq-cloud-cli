@@ -49,7 +49,7 @@ install_and_configure_aws() {
                 rm -rf "$TEMP_DIR"
                 exit 1
             }
-        }
+        fi
         
         unzip -q awscliv2.zip
         sudo ./aws/install --update
@@ -195,7 +195,7 @@ manage_vm() {
     if ! aws ec2 describe-instances --instance-ids "$instance_id" &> /dev/null; then
         echo "Error: Instance not found"
         exit 1
-    }
+    fi
     
     case "$action" in
         "start")

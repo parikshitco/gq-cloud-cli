@@ -39,7 +39,7 @@ setup_linux() {
     
     # Download the Linux script
     echo "Downloading Linux script..."
-    curl -o "$INSTALL_DIR/gq-cloud" "https://raw.githubusercontent.com/your-repo/gq-cloud/main/gq-cloud.sh" || {
+    curl -o "$INSTALL_DIR/gq-cloud" "https://raw.githubusercontent.com/parikshitco/gq-cloud-cli/refs/heads/main/gq-cloud.sh" || {
         echo -e "${RED}Failed to download gq-cloud script${RESET_COLOR}"
         exit 1
     }
@@ -77,7 +77,7 @@ setup_windows() {
     
     # Download the Windows PowerShell script
     echo "Downloading Windows script..."
-    curl -o "$INSTALL_DIR/gq-cloud.ps1" "https://raw.githubusercontent.com/your-repo/gq-cloud/main/gq-cloud.ps1" || {
+    curl -o "$INSTALL_DIR/gq-cloud.ps1" "https://raw.githubusercontent.com/parikshitco/gq-cloud-cli/refs/heads/main/gq-cloud.ps1" || {
         echo -e "${RED}Failed to download gq-cloud.ps1 script${RESET_COLOR}"
         exit 1
     }
