@@ -52,9 +52,8 @@ function Install-AWS {
     # $region = Read-Host "Default region (e.g., us-east-1)"
 
     if ([string]::IsNullOrWhiteSpace($accessKey) -or 
-        [string]::IsNullOrWhiteSpace([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretKey))) -or 
-        [string]::IsNullOrWhiteSpace($region)) {
-        throw "Access key, secret key, and region are required"
+        [string]::IsNullOrWhiteSpace([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretKey)))) {
+        throw "Access key and secret key are required"
     }
 
     # Configure AWS CLI
