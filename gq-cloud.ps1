@@ -48,7 +48,7 @@ function Install-AWS {
     $accessKey = Read-Host "Access Key ID"
     # To use SecureString for secret key, uncomment the following line
     # $secretKey = Read-Host -AsSecureString "AWS Secret Access Key"
-    $secretKey = Read-Host "Secret Access Key"
+    $secretKey = Read-Host "Secret Access Key" -AsSecureString
     # $region = Read-Host "Default region (e.g., us-east-1)"
 
     if ([string]::IsNullOrWhiteSpace($accessKey) -or 
@@ -284,7 +284,7 @@ try {
         Write-Host "`nUsage: gq-cloud (operation)`n"
         Write-Host "VM Operations:"
         Write-Host "  -init     Setup environment"
-        Write-Host "  -re    Remove environment"
+        Write-Host "  -re       Remove environment"
         Write-Host "VM Operations:"
         Write-Host "  -vm      Setup VM environment"
         Write-Host "  -vms     Start VM"
