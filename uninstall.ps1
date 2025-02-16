@@ -1,6 +1,6 @@
 # Windows Uninstall Script for GQ Cloud CLI
 
-# Check for administrator privileges
+# Ensure the script is run as Administrator
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Error: This script needs to be run as Administrator" -ForegroundColor Red
     Write-Host "Please right-click on PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
@@ -10,59 +10,54 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 Write-Host "GQ Cloud Management Tool Uninstallation" -ForegroundColor Blue
 Write-Host "----------------------------------------"
 
+# Define files to remove
+$filesToRemove = @(
+    "$env:SystemRoot\System32\gq-cloud.ps1",
+    "$env:SystemRoot\System32\gq-cloud.bat"
+)
+
+$success = $true
+
+# Remove files
+foreach ($file in $filesToRemove) {
+    if (Test-Path $file) {
+        try {
+            Write-Host "Removing $file..." -ForegroundColor Blue
+            Remove-Item -Path $file -Force -ErrorAction Stop
+            Write-Host "Successfully removed $file" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Error: Failed to remove $file" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
+            $success = $false
+        }
+    }
+    else {
+        Write-Host "File not found: $file" -ForegroundColor Yellow
+    }
+}
+
+# Remove from PATH if necessary
 try {
-    # Array of files to remove
-    $filesToRemove = @(
-        "C:\Windows\System32\gq-cloud.ps1",
-        "C:\Windows\System32\gq-cloud.bat"
-    )
-
-    $success = $true
-
-    foreach ($file in $filesToRemove) {
-        Write-Host "Removing $file..." -ForegroundColor Blue
-        if (Test-Path $file) {
-            try {
-                Remove-Item -Path $file -Force
-                Write-Host "Successfully removed $file" -ForegroundColor Green
-            }
-            catch {
-                Write-Host "Failed to remove $file: $_" -ForegroundColor Red
-                $success = $false
-            }
-        }
-        else {
-            Write-Host "File not found: $file" -ForegroundColor Yellow
-        }
-    }
-
-    # Clear PowerShell command path cache
-    try {
-        Get-Command gq-cloud -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-    }
-    catch {
-        # Ignore any errors from command cache clearing
-    }
-
-    if ($success) {
-        Write-Host "`nGQ Cloud CLI has been successfully uninstalled!" -ForegroundColor Green
-    }
-    else {
-        Write-Host "`nSome components could not be removed. Please try running the script again as Administrator." -ForegroundColor Yellow
-    }
-
-    # Verify removal
-    $remainingFiles = $filesToRemove | Where-Object { Test-Path $_ }
-    if ($remainingFiles.Count -eq 0) {
-        Write-Host "All GQ Cloud CLI files have been removed from your system." -ForegroundColor Green
-    }
-    else {
-        Write-Host "Warning: The following files could not be removed:" -ForegroundColor Yellow
-        $remainingFiles | ForEach-Object { Write-Host "- $_" }
+    $EnvPath = [System.Environment]::GetEnvironmentVariable("Path", "Machine") -split ";" 
+    $UpdatedPath = $EnvPath -notmatch "gq-cloud"
+    if ($UpdatedPath -ne $EnvPath) {
+        [System.Environment]::SetEnvironmentVariable("Path", ($UpdatedPath -join ";"), "Machine")
+        Write-Host "Removed GQ Cloud from system PATH" -ForegroundColor Green
     }
 }
 catch {
-    Write-Host "Error during uninstallation: $_" -ForegroundColor Red
+    Write-Host "Warning: Failed to update system PATH" -ForegroundColor Yellow
+}
+
+# Verify removal
+$remainingFiles = $filesToRemove | Where-Object { Test-Path $_ }
+if ($remainingFiles.Count -eq 0 -and $success) {
+    Write-Host "`nGQ Cloud CLI has been successfully uninstalled!" -ForegroundColor Green
+    exit 0
+}
+else {
+    Write-Host "`nWarning: Some components could not be removed. Please check manually." -ForegroundColor Yellow
+    $remainingFiles | ForEach-Object { Write-Host "- $_" }
     exit 1
 }
