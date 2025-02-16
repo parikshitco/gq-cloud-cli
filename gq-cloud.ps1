@@ -18,7 +18,14 @@ function Install-AWS {
     # Check if AWS CLI is already installed
     if (Get-Command aws -ErrorAction SilentlyContinue) {
         Write-Host "Environment is already installed:"
-        aws --version
+        $awsVersion = aws --version 2>&1
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Failed to check the version." -ForegroundColor Red
+            exit 1
+        } else {
+            Write-Host "Found suitable version." -ForegroundColor Green
+        }
         $configure = Read-Host "Would you like to reconfigure environment? (y/N)"
         if ($configure -ne "y") {
             return
@@ -46,31 +53,37 @@ function Install-AWS {
 
     Write-Host "`nConfiguring..."
     $accessKey = Read-Host "Access Key ID"
-    # To use SecureString for secret key, uncomment the following line
-    # $secretKey = Read-Host -AsSecureString "AWS Secret Access Key"
-    $secretKey = Read-Host "Secret Access Key" -AsSecureString
-    # $region = Read-Host "Default region (e.g., us-east-1)"
+    $secretKey = Read-Host "Secret Access Key"
 
+    # Validate inputs
     if ([string]::IsNullOrWhiteSpace($accessKey) -or 
-        [string]::IsNullOrWhiteSpace([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretKey)))) {
-        throw "Access key and secret key are required"
+        [string]::IsNullOrWhiteSpace($secretKey)) {
+        Write-Host "Error: Access key and secret key are required" -ForegroundColor Red
+        exit 1
     }
 
     # Configure AWS CLI
     aws configure set aws_access_key_id $accessKey
-    aws configure set aws_secret_access_key ([Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretKey)))
-    aws configure set region $region
+    aws configure set aws_secret_access_key $secretKey
     aws configure set region eu-west-2
     aws configure set output json
 
-    # Verify configuration
-    # try {
-    $verifyConfig = aws sts get-caller-identity 2>&1
-    if ($verifyConfig -match "error" -or [string]::IsNullOrWhiteSpace($verifyConfig)) {
-        Write-Host "Failed to verify configuration"
+    # Verify AWS configuration
+    try {
+        $verifyConfig = aws sts get-caller-identity 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Error: AWS configuration failed!" -ForegroundColor Red
+            Write-Host $verifyConfig
+            exit 1
+        }
+        else {
+            Write-Host "`nEnvironment configured successfully!" -ForegroundColor Green
+        }
     }
-    else {
-        Write-Host ("`nEnvironment configured successfully!") -ForegroundColor Green
+    catch {
+        Write-Host "Error: AWS configuration verification failed!" -ForegroundColor Red
+        Write-Host $_.Exception.Message
+        exit 1
     }
 
 
