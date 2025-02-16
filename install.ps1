@@ -62,7 +62,7 @@ powershell.exe -ExecutionPolicy Bypass -File "%~dp0gq-cloud.ps1" %*
             Write-Host " gq-cloud " -ForegroundColor Blue -NoNewline
             Write-Host "command from Command Prompt or PowerShell"
             Write-Host "Try" -NoNewline
-            Write-Host " gq-cloud --help " -ForegroundColor Yellow -NoNewline
+            Write-Host " gq-cloud -h " -ForegroundColor Yellow -NoNewline
             Write-Host "to get started"
         }
         else {
