@@ -4,79 +4,82 @@ param(
     [string]$Operation
 )
 
-# Output formatting
-$Colors = @{
-    ResetColor = "`e[0m"
-    Blue = "`e[1;34m"
-    Green = "`e[1;32m"
-    Red = "`e[0;31m"
-    Yellow = "`e[0;33m"
+# Output formatting (Using ForegroundColor instead of ANSI)
+function Write-ColorMessage {
+    param (
+        [string]$Message,
+        [string]$Color = "White"
+    )
+    Write-Host $Message -ForegroundColor $Color
 }
 
 function Show-Usage {
-    Write-Host "Usage: gq-cloud <operation>"
-    Write-Host ""
-    Write-Host "AWS Operations:"
-    Write-Host "    -aws, --aws-setup      Setup AWS environment"
-    Write-Host "    -raws, --remove-aws    Remove AWS environment"
-    Write-Host ""
-    Write-Host "VM Operations:"
-    Write-Host "    -vm, --vm-setup        Setup VM environment"
-    Write-Host "    -vms, --vm-start       Start VM environment"
-    Write-Host "    -vmd, --vm-stop        Stop VM environment"
-    Write-Host "    -vmr, --vm-restart     Restart VM environment"
-    Write-Host ""
-    Write-Host "Help:"
-    Write-Host "    -h, --help             Show this help message"
+    Write-ColorMessage "`nUsage: gq-cloud <operation>`n" "Cyan"
+
+    Write-ColorMessage "AWS Operations:" "Yellow"
+    Write-ColorMessage "    -aws, --aws-setup      Setup AWS environment" "White"
+    Write-ColorMessage "    -raws, --remove-aws    Remove AWS environment`n" "White"
+
+    Write-ColorMessage "VM Operations:" "Yellow"
+    Write-ColorMessage "    -vm, --vm-setup        Setup VM environment" "White"
+    Write-ColorMessage "    -vms, --vm-start       Start VM environment" "White"
+    Write-ColorMessage "    -vmd, --vm-stop        Stop VM environment" "White"
+    Write-ColorMessage "    -vmr, --vm-restart     Restart VM environment`n" "White"
+
+    Write-ColorMessage "Help:" "Yellow"
+    Write-ColorMessage "    -h, --help             Show this help message" "White"
 }
 
-# ... [rest of your functions remain the same] ...
+# Ensure required functions exist
+function Install-AWS {
+    Write-ColorMessage "Setting up AWS environment..." "Green"
+    # Add AWS setup logic here
+}
+
+function Uninstall-AWS {
+    Write-ColorMessage "Removing AWS environment..." "Green"
+    # Add AWS removal logic here
+}
+
+function Configure-VM {
+    Write-ColorMessage "Configuring VM environment..." "Green"
+    # Add VM setup logic here
+}
+
+function Manage-VM {
+    param([string]$Action)
+    switch ($Action) {
+        "start" { Write-ColorMessage "Starting VM..." "Green" }
+        "stop" { Write-ColorMessage "Stopping VM..." "Red" }
+        "restart" { Write-ColorMessage "Restarting VM..." "Yellow" }
+        default { Write-ColorMessage "Unknown VM action: $Action" "Red" }
+    }
+}
 
 # Main script execution
 try {
     # Handle empty input or help flags
     if ([string]::IsNullOrWhiteSpace($Operation) -or 
-        $Operation -eq "-h" -or 
-        $Operation -eq "--help" -or 
-        $Operation -eq "-help" -or 
-        $Operation -eq "help") {
+        $Operation -match "^(--help|-help|-h|help)$") {
         Show-Usage
         exit 0
     }
 
-    switch -Regex ($Operation) {
-        '^(-aws|--aws-setup)$' {
-            Install-AWS
-            break
-        }
-        '^(-raws|--remove-aws)$' {
-            Uninstall-AWS
-            break
-        }
-        '^(-vm|--vm-setup)$' {
-            Configure-VM
-            break
-        }
-        '^(-vms|--vm-start)$' {
-            Manage-VM -Action "start"
-            break
-        }
-        '^(-vmd|--vm-stop)$' {
-            Manage-VM -Action "stop"
-            break
-        }
-        '^(-vmr|--vm-restart)$' {
-            Manage-VM -Action "restart"
-            break
-        }
+    switch -Regex ($Operation.ToLower()) {  # Case-insensitive matching
+        '^(-aws|--aws-setup)$' { Install-AWS; break }
+        '^(-raws|--remove-aws)$' { Uninstall-AWS; break }
+        '^(-vm|--vm-setup)$' { Configure-VM; break }
+        '^(-vms|--vm-start)$' { Manage-VM -Action "start"; break }
+        '^(-vmd|--vm-stop)$' { Manage-VM -Action "stop"; break }
+        '^(-vmr|--vm-restart)$' { Manage-VM -Action "restart"; break }
         default {
-            Write-Host "Error: Unknown operation '$Operation'" -ForegroundColor Red
+            Write-ColorMessage "Error: Unknown operation '$Operation'" "Red"
             Show-Usage
             exit 1
         }
     }
 }
 catch {
-    Write-Host "Error: $_" -ForegroundColor Red
+    Write-ColorMessage "Error: $_" "Red"
     exit 1
 }
