@@ -3,9 +3,9 @@ param(
     [string]$Operation
 )
 
-# Output colors
+# Output formatting
 $Colors = @{
-    Reset = "`e[0m"
+    ResetColor = "`e[0m"
     Blue = "`e[1;34m"
     Green = "`e[1;32m"
     Red = "`e[0;31m"
@@ -13,7 +13,7 @@ $Colors = @{
 }
 
 function Show-Usage {
-    Write-Host "Usage: .\gq-cloud.ps1 <operation>"
+    Write-Host "Usage: gq-cloud <operation>"
     Write-Host ""
     Write-Host "AWS Operations:"
     Write-Host "    -aws, --aws-setup      Setup AWS environment"
@@ -29,10 +29,10 @@ function Show-Usage {
 function Install-AWS {
     Write-Host "Installing AWS CLI..."
     
-    $msiFile = "$env:TEMP\AWSCLIV2.msi"
-    $installerUrl = "https://awscli.amazonaws.com/AWSCLIV2.msi"
-
     try {
+        $msiFile = Join-Path $env:TEMP "AWSCLIV2.msi"
+        $installerUrl = "https://awscli.amazonaws.com/AWSCLIV2.msi"
+
         if (Get-Command aws -ErrorAction SilentlyContinue) {
             Write-Host "AWS CLI is already installed:"
             aws --version
@@ -40,10 +40,11 @@ function Install-AWS {
             if ($configure -ne "y") {
                 return
             }
-        } else {
+        }
+        else {
             Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
             Start-Process msiexec.exe -Args "/i $msiFile /quiet" -Wait
-            Remove-Item $msiFile
+            Remove-Item $msiFile -Force
         }
 
         Write-Host "`nConfiguring AWS CLI..."
@@ -56,11 +57,11 @@ function Install-AWS {
         aws configure set region $region
         aws configure set output json
 
-        Write-Host "✓ AWS CLI configured successfully!"
+        Write-Host "Successfully configured AWS CLI!"
         aws sts get-caller-identity
     }
     catch {
-        Write-Host "✗ Error: $_"
+        Write-Host "Error: $_" -ForegroundColor Red
         exit 1
     }
 }
@@ -73,48 +74,49 @@ function Uninstall-AWS {
         if ($app) {
             $app.Uninstall()
             Remove-Item -Path "$env:USERPROFILE\.aws" -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "✓ AWS CLI has been successfully removed!"
-        } else {
+            Write-Host "Successfully removed AWS CLI!"
+        }
+        else {
             Write-Host "AWS CLI is not installed."
         }
     }
     catch {
-        Write-Host "✗ Error uninstalling AWS CLI: $_"
+        Write-Host "Error uninstalling AWS CLI: $_" -ForegroundColor Red
         exit 1
     }
 }
 
 function Configure-VM {
-    $sshPath = "$env:USERPROFILE\.ssh"
-    if (-not (Test-Path $sshPath)) {
-        New-Item -ItemType Directory -Path $sshPath | Out-Null
-    }
+    try {
+        $sshPath = "$env:USERPROFILE\.ssh"
+        if (-not (Test-Path $sshPath)) {
+            New-Item -ItemType Directory -Path $sshPath | Out-Null
+        }
 
-    $configPath = "$sshPath\config"
-    if (-not (Test-Path $configPath)) {
-        New-Item -ItemType File -Path $configPath | Out-Null
-    }
+        $configPath = Join-Path $sshPath "config"
+        if (-not (Test-Path $configPath)) {
+            New-Item -ItemType File -Path $configPath | Out-Null
+        }
 
-    Write-Host "`nConfiguring SSH Client..."
-    $vmName = Read-Host "Enter VM name (e.g., dev-server)"
-    $ipAddress = Read-Host "Enter IP address"
-    $keyPath = Read-Host "Enter path to SSH key"
+        Write-Host "`nConfiguring SSH Client..."
+        $vmName = Read-Host "Enter VM name (e.g., dev-server)"
+        $ipAddress = Read-Host "Enter IP address"
+        $keyPath = Read-Host "Enter path to SSH key"
 
-    if ([string]::IsNullOrWhiteSpace($vmName) -or 
-        [string]::IsNullOrWhiteSpace($ipAddress) -or 
-        [string]::IsNullOrWhiteSpace($keyPath)) {
-        Write-Host "Error: All fields are required"
-        exit 1
-    }
+        if ([string]::IsNullOrWhiteSpace($vmName) -or 
+            [string]::IsNullOrWhiteSpace($ipAddress) -or 
+            [string]::IsNullOrWhiteSpace($keyPath)) {
+            Write-Host "Error: All fields are required" -ForegroundColor Red
+            exit 1
+        }
 
-    $keyPath = $keyPath.Replace("~", $env:USERPROFILE)
-    if (-not (Test-Path $keyPath)) {
-        Write-Host "Error: SSH key not found at $keyPath"
-        exit 1
-    }
+        $keyPath = $keyPath.Replace("~", $env:USERPROFILE)
+        if (-not (Test-Path $keyPath)) {
+            Write-Host "Error: SSH key not found at $keyPath" -ForegroundColor Red
+            exit 1
+        }
 
-    $config = @"
-
+        $config = @"
 # Configuration for $vmName
 Host $vmName
         HostName $ipAddress
@@ -123,78 +125,101 @@ Host $vmName
 
 "@
 
-    Add-Content -Path $configPath -Value $config
-    Write-Host "✓ SSH configuration added successfully!"
+        Add-Content -Path $configPath -Value $config
+        Write-Host "Successfully configured SSH!" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Error configuring VM: $_" -ForegroundColor Red
+        exit 1
+    }
 }
 
 function Manage-VM {
-    param($Action)
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("start", "stop", "restart")]
+        [string]$Action
+    )
     
-    Write-Host "`n${Action}ing EC2 Instance..."
-    $instanceId = Read-Host "Enter Instance ID (e.g., i-0123456789abcdef0)"
-
-    if ($instanceId -notmatch '^i-[a-zA-Z0-9]+$') {
-        Write-Host "Error: Invalid instance ID format"
-        exit 1
-    }
-
     try {
-        aws ec2 describe-instances --instance-ids $instanceId | Out-Null
+        Write-Host "`n${Action}ing EC2 Instance..."
+        $instanceId = Read-Host "Enter Instance ID (e.g., i-0123456789abcdef0)"
+
+        if ($instanceId -notmatch '^i-[a-zA-Z0-9]+$') {
+            Write-Host "Error: Invalid instance ID format" -ForegroundColor Red
+            exit 1
+        }
+
+        # Verify instance exists
+        try {
+            $null = aws ec2 describe-instances --instance-ids $instanceId
+        }
+        catch {
+            Write-Host "Error: Instance not found" -ForegroundColor Red
+            exit 1
+        }
 
         switch ($Action) {
             "start" {
-                aws ec2 start-instances --instance-ids $instanceId | Out-Null
+                aws ec2 start-instances --instance-ids $instanceId --output json
                 Write-Host "Waiting for instance to start..."
                 aws ec2 wait instance-running --instance-ids $instanceId
             }
             "stop" {
-                aws ec2 stop-instances --instance-ids $instanceId | Out-Null
+                aws ec2 stop-instances --instance-ids $instanceId --output json
                 Write-Host "Waiting for instance to stop..."
                 aws ec2 wait instance-stopped --instance-ids $instanceId
             }
             "restart" {
-                aws ec2 reboot-instances --instance-ids $instanceId | Out-Null
+                aws ec2 reboot-instances --instance-ids $instanceId --output json
                 Start-Sleep -Seconds 10
                 Write-Host "Waiting for instance to restart..."
                 aws ec2 wait instance-running --instance-ids $instanceId
             }
         }
-        Write-Host "✓ Instance $Action completed successfully"
+
+        Write-Host "Successfully completed $Action operation!" -ForegroundColor Green
     }
     catch {
-        Write-Host "✗ Error managing instance: $_"
+        Write-Host "Error managing VM: $_" -ForegroundColor Red
         exit 1
     }
 }
 
 # Main script execution
-switch ($Operation) {
-    { $_ -in "-aws","--aws-setup" } {
-        Install-AWS
-        break
+try {
+    switch -Regex ($Operation) {
+        '^(-aws|--aws-setup)$' {
+            Install-AWS
+            break
+        }
+        '^(-raws|--remove-aws)$' {
+            Uninstall-AWS
+            break
+        }
+        '^(-vm|--vm-setup)$' {
+            Configure-VM
+            break
+        }
+        '^(-vms|--vm-start)$' {
+            Manage-VM -Action "start"
+            break
+        }
+        '^(-vmd|--vm-stop)$' {
+            Manage-VM -Action "stop"
+            break
+        }
+        '^(-vmr|--vm-restart)$' {
+            Manage-VM -Action "restart"
+            break
+        }
+        default {
+            Show-Usage
+            exit 1
+        }
     }
-    { $_ -in "-raws","--remove-aws" } {
-        Uninstall-AWS
-        break
-    }
-    { $_ -in "-vm","--vm-setup" } {
-        Configure-VM
-        break
-    }
-    { $_ -in "-vms","--vm-start" } {
-        Manage-VM -Action "start"
-        break
-    }
-    { $_ -in "-vmd","--vm-stop" } {
-        Manage-VM -Action "stop"
-        break
-    }
-    { $_ -in "-vmr","--vm-restart" } {
-        Manage-VM -Action "restart"
-        break
-    }
-    default {
-        Show-Usage
-        exit 1
-    }
+}
+catch {
+    Write-Host "Error: $_" -ForegroundColor Red
+    exit 1
 }
