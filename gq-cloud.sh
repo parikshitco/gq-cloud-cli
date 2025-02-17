@@ -10,24 +10,22 @@ YELLOW="\033[0;33m"
 usage() {
     echo "Usage: gq-cloud <operation>"
     echo ""
-    echo "AWS Operations:"
-    echo "    -aws, --aws-setup      Setup AWS environment"
-    echo "    -raws, --remove-aws    Remove AWS environment"
-    echo ""
     echo "VM Operations:"
-    echo "    -vm, --vm-setup        Setup VM environment"
-    echo "    -vms, --vm-start       Start VM environment"
-    echo "    -vmd, --vm-stop        Stop VM environment"
-    echo "    -vmr, --vm-restart     Restart VM environment"
+    echo "    -init, --env-setup     Setup environment"
+    echo "    -re,   --remove-env    Remove environment"
+    echo "    -vm,   --vm-setup      Setup VM environment"
+    echo "    -vms,  --vm-start      Start VM"
+    echo "    -vmd,  --vm-stop       Stop VM"
+    echo "    -vmr,  --vm-restart    Restart VM"
 }
 
 install_and_configure_aws() {
     # Check if AWS CLI is already installed
     if command -v aws &> /dev/null; then
-        echo "AWS CLI is already installed:"
+        echo "Environment is already up:"
         aws --version
     else
-        echo "Installing AWS CLI..."
+        echo "Setting up environment..."
         
         # Create and move to temporary directory
         TEMP_DIR="$HOME/aws-cli-temp"
@@ -36,7 +34,7 @@ install_and_configure_aws() {
         
         # Download and install AWS CLI
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" || {
-            echo "Error: Failed to download AWS CLI installer"
+            echo "Error: Failed to download installer"
             rm -rf "$TEMP_DIR"
             exit 1
         }
@@ -58,15 +56,15 @@ install_and_configure_aws() {
         rm -rf "$TEMP_DIR"
         
         if ! aws --version; then
-            echo "✗ AWS CLI installation failed"
+            echo "✗ Installation failed"
             exit 1
         fi
-        echo "✓ AWS CLI installed successfully!"
+        echo "✓ Installed successfully!"
     fi
 
     # AWS Configuration
     if [[ -f ~/.aws/credentials ]] && aws sts get-caller-identity &> /dev/null; then
-        echo -e "\nExisting AWS configuration found and verified:"
+        echo -e "\nExisting configuration found and verified:"
         aws sts get-caller-identity
         read -p "Would you like to create a new configuration? (y/N): " create_new
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
@@ -75,25 +73,25 @@ install_and_configure_aws() {
         fi
     fi
 
-    echo -e "\nConfiguring AWS CLI..."
+    echo -e "\nConfiguring..."
     mkdir -p ~/.aws
     
-    read -p "AWS Access Key ID: " aws_access_key
-    read -p "AWS Secret Access Key: " aws_secret_key
-    read -p "Default region (e.g., us-east-1): " aws_region
+    read -p "Access Key ID: " aws_access_key
+    read -p "Secret Access Key: " aws_secret_key
+    # read -p "Default region (e.g., eu-west-2): " aws_region
     
-    if [[ -z "$aws_access_key" || -z "$aws_secret_key" || -z "$aws_region" ]]; then
-        echo "Error: Access key, secret key, and region are required"
+    if [[ -z "$aws_access_key" || -z "$aws_secret_key"]]; then
+        echo "Error: Access key and secret key are required"
         exit 1
     fi
     
     aws configure set aws_access_key_id "$aws_access_key"
     aws configure set aws_secret_access_key "$aws_secret_key"
-    aws configure set region "$aws_region"
+    aws configure set region "eu-west-2"
     aws configure set output "json"
     
     if aws sts get-caller-identity &> /dev/null; then
-        echo "✓ AWS CLI configured successfully!"
+        echo "✓ Configured successfully!"
         aws sts get-caller-identity
     else
         echo "✗ Configuration verification failed"
@@ -102,7 +100,7 @@ install_and_configure_aws() {
 }
 
 uninstall_aws_cli() {
-    echo "Uninstalling AWS CLI..."
+    echo "Uninstalling Environment..."
     
     sudo rm -rf /usr/local/aws-cli
     sudo rm -f /usr/local/bin/aws
@@ -117,9 +115,9 @@ uninstall_aws_cli() {
     fi
     
     if ! command -v aws &> /dev/null; then
-        echo "✓ AWS CLI has been successfully removed!"
+        echo "✓ Environment has been successfully removed!"
     else
-        echo "✗ AWS CLI removal may have been incomplete"
+        echo "✗ Environment removal may have been incomplete"
         echo "Manual removal may be required for: $(which aws)"
         exit 1
     fi
@@ -183,7 +181,7 @@ configure_vm() {
 
 manage_vm() {
     local action=$1
-    echo -e "\n${action^}ing EC2 Instance..."
+    echo -e "\n${action^}ing VM..."
     
     read -p "Enter Instance ID (e.g., i-0123456789abcdef0): " instance_id
     
@@ -214,19 +212,19 @@ manage_vm() {
     esac
 
     if [ $? -eq 0 ]; then
-        echo "✓ Instance ${action} successful"
+        echo "✓ Vm ${action} successful"
     else
-        echo "✗ Failed to ${action} instance"
+        echo "✗ Failed to ${action} VM"
         exit 1
     fi
 }
 
 # Main script execution
 case "$1" in
-    -aws|--aws-setup)
+    -init|--env-setup)
         install_and_configure_aws
         ;;
-    -raws|--remove-aws)
+    -re|--remove-env)
         uninstall_aws_cli
         ;;
     -vm|--vm-setup)
