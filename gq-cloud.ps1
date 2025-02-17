@@ -43,7 +43,7 @@ function Install-AWS {
     } else {
         # Installation process remains the same as your working version
         try {
-            Write-Host "Downloading AWS CLI installer..." -ForegroundColor Yellow
+            Write-Host "Downloading installer..." -ForegroundColor Yellow
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
             
@@ -51,7 +51,7 @@ function Install-AWS {
                 throw "Failed to download installer"
             }
             
-            Write-Host "Installing AWS CLI..." -ForegroundColor Yellow
+            Write-Host "Installing..." -ForegroundColor Yellow
             $process = Start-Process msiexec.exe -ArgumentList "/i `"$msiFile`" /quiet /norestart" -Wait -PassThru
             
             if ($process.ExitCode -ne 0) {
@@ -63,11 +63,11 @@ function Install-AWS {
             Start-Sleep -Seconds 10
             
             if (Test-AWSCLIInstallation) {
-                Write-Host "✓ Installed successfully!" -ForegroundColor Green
+                Write-Host "Installed successfully!" -ForegroundColor Green
                 $awsVersion = aws --version
                 Write-Host "Installed version: $awsVersion" -ForegroundColor Green
             } else {
-                throw "✗ Installation failed"
+                throw "Installation failed"
             }
         }
         catch {
@@ -127,15 +127,15 @@ function Install-AWS {
         try {
             $verifyConfig = aws sts get-caller-identity
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "✓ Configured successfully!" -ForegroundColor Green
+                Write-Host "Configured successfully!" -ForegroundColor Green
                 Write-Host $verifyConfig -ForegroundColor Gray
             } else {
-                Write-Host "✗ Configuration verification failed" -ForegroundColor Red
+                Write-Host "Configuration verification failed" -ForegroundColor Red
                 exit 1
             }
         }
         catch {
-            Write-Host "✗ Configuration verification failed" -ForegroundColor Red
+            Write-Host "Configuration verification failed" -ForegroundColor Red
             Write-Host $_.Exception.Message -ForegroundColor Red
             exit 1
         }
