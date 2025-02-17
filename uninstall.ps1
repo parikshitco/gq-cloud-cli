@@ -52,29 +52,44 @@ catch {
 
 # Uninstall AWS CLI
 Write-Host "Checking for AWS CLI installation..." -ForegroundColor Blue
-$awsCliInstalled = Get-Command aws -ErrorAction SilentlyContinue
 
-if ($awsCliInstalled) {
-    Write-Host "Uninstalling AWS CLI..." -ForegroundColor Blue
-    try {
-        # AWS CLI Uninstallation Command (works for MSI installation)
-        $awsUninstall = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -match "AWS CLI" }
-        if ($awsUninstall) {
-            $awsUninstall.Uninstall()
-            Write-Host "AWS CLI has been successfully uninstalled." -ForegroundColor Green
+try {
+    # Find AWS CLI installation in Programs and Features
+    $awsApp = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*AWS Command Line Interface*" }
+    
+    if ($awsApp) {
+        Write-Host "Found AWS CLI installation: $($awsApp.Name)" -ForegroundColor Blue
+        
+        # Kill any running AWS processes
+        Get-Process | Where-Object { $_.Name -like "*aws*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        
+        # Uninstall using msiexec with elevated privileges
+        $process = Start-Process msiexec.exe -ArgumentList "/x $($awsApp.IdentifyingNumber) /qn" -Wait -NoNewWindow -PassThru
+        Start-Sleep -Seconds 10  # Wait for uninstallation to complete
+        
+        # Remove AWS directory using cmd.exe with elevated privileges
+        $awsPath = "C:\Program Files\Amazon\AWSCLIV2"
+        if (Test-Path $awsPath) {
+            Write-Host "Removing AWS CLI directory using elevated cmd..." -ForegroundColor Blue
+            $cmdArgs = "/c rd /s /q `"$awsPath`""
+            Start-Process cmd.exe -ArgumentList $cmdArgs -Verb RunAs -Wait
         }
-        else {
-            Write-Host "AWS CLI not found in installed programs." -ForegroundColor Yellow
+        
+        # Remove .aws directory from user profile
+        $awsConfigPath = "$env:USERPROFILE\.aws"
+        if (Test-Path $awsConfigPath) {
+            Remove-Item -Path $awsConfigPath -Recurse -Force -ErrorAction SilentlyContinue
         }
-    }
-    catch {
-        Write-Host "Error: Failed to uninstall AWS CLI" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        $success = $false
+        
+        Write-Host "AWS CLI uninstallation completed." -ForegroundColor Green
+    } else {
+        Write-Host "AWS CLI installation not found in Programs and Features." -ForegroundColor Yellow
     }
 }
-else {
-    Write-Host "AWS CLI is not installed on this system." -ForegroundColor Yellow
+catch {
+    Write-Host "Error during AWS CLI uninstallation: $_" -ForegroundColor Red
+    $success = $false
 }
 
 # Verify removal
