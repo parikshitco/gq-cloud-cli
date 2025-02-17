@@ -79,10 +79,16 @@ install_and_configure_aws() {
     read -p "Access Key ID: " aws_access_key
     read -p "Secret Access Key: " aws_secret_key
     # read -p "Default region (e.g., eu-west-2): " aws_region
-    if [[ -z "$aws_access_key" || -z "$aws_secret_key" ]]; then
+    if [ -z "$aws_access_key" ] || [ -z "$aws_secret_key" ]; then
         echo "Error: Access key and secret key are required"
         exit 1
     fi
+
+    # if [[ -z "$aws_access_key" || -z "$aws_secret_key" ]]; then
+    #     echo "Error: Access key and secret key are required"
+    #     exit 1
+    # fi
+
 
     
     aws configure set aws_access_key_id "$aws_access_key"
