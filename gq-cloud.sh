@@ -23,7 +23,9 @@ install_and_configure_aws() {
     # Check if AWS CLI is already installed
     if command -v aws &> /dev/null; then
         echo "Environment is already up:"
-        aws --version
+        if aws --version >/dev/null 2>&1; then
+            echo "Suitable version found"
+        fi
     else
         echo "Setting up environment..."
         
@@ -83,12 +85,6 @@ install_and_configure_aws() {
         echo "Error: Access key and secret key are required"
         exit 1
     fi
-
-    # if [[ -z "$aws_access_key" || -z "$aws_secret_key" ]]; then
-    #     echo "Error: Access key and secret key are required"
-    #     exit 1
-    # fi
-
 
     
     aws configure set aws_access_key_id "$aws_access_key"
