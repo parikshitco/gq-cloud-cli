@@ -7,7 +7,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit 1
 }
 
-Write-Host "GQ Cloud Management Tool and AWS CLI Uninstallation" -ForegroundColor Blue
+Write-Host "GQ Cloud Management Tool" -ForegroundColor Blue
 Write-Host "-----------------------------------------------------"
 
 # Define files to remove
@@ -51,14 +51,14 @@ catch {
 }
 
 # Uninstall AWS CLI
-Write-Host "Checking for AWS CLI installation..." -ForegroundColor Blue
+Write-Host "Checking for environment installation..." -ForegroundColor Blue
 
 try {
     # Find AWS CLI installation in Programs and Features
     $awsApp = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*AWS Command Line Interface*" }
     
     if ($awsApp) {
-        Write-Host "Found AWS CLI installation: $($awsApp.Name)" -ForegroundColor Blue
+        Write-Host "Found environment installation: $($awsApp.Name)" -ForegroundColor Blue
         
         # Kill any running AWS processes
         Get-Process | Where-Object { $_.Name -like "*aws*" } | Stop-Process -Force -ErrorAction SilentlyContinue
@@ -71,7 +71,7 @@ try {
         # Remove AWS directory using cmd.exe with elevated privileges
         $awsPath = "C:\Program Files\Amazon\AWSCLIV2"
         if (Test-Path $awsPath) {
-            Write-Host "Removing AWS CLI directory using elevated cmd..." -ForegroundColor Blue
+            Write-Host "Removing directory using elevated cmd..." -ForegroundColor Blue
             $cmdArgs = "/c rd /s /q `"$awsPath`""
             Start-Process cmd.exe -ArgumentList $cmdArgs -Verb RunAs -Wait
         }
@@ -82,20 +82,20 @@ try {
             Remove-Item -Path $awsConfigPath -Recurse -Force -ErrorAction SilentlyContinue
         }
         
-        Write-Host "AWS CLI uninstallation completed." -ForegroundColor Green
+        Write-Host "Uninstallation completed." -ForegroundColor Green
     } else {
-        Write-Host "AWS CLI installation not found in Programs and Features." -ForegroundColor Yellow
+        Write-Host "Installation not found in Programs and Features." -ForegroundColor Yellow
     }
 }
 catch {
-    Write-Host "Error during AWS CLI uninstallation: $_" -ForegroundColor Red
+    Write-Host "Error during environment uninstallation: $_" -ForegroundColor Red
     $success = $false
 }
 
 # Verify removal
 $remainingFiles = $filesToRemove | Where-Object { Test-Path $_ }
 if ($remainingFiles.Count -eq 0 -and $success) {
-    Write-Host "`nGQ Cloud CLI and AWS CLI have been successfully uninstalled!" -ForegroundColor Green
+    Write-Host "`nGQ Cloud CLI have been successfully uninstalled!" -ForegroundColor Green
     exit 0
 }
 else {
