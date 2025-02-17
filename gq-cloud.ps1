@@ -8,18 +8,15 @@ param(
     [switch]$h
 )
 
-
 function Install-AWS {
     Write-Host "Setting up AWS environment..."
     
     $msiFile = Join-Path $env:TEMP "AWSCLIV2.msi"
     $installerUrl = "https://awscli.amazonaws.com/AWSCLIV2.msi"
-    
     # Check if AWS CLI is already installed
-    $awsCommand = Get-Command aws -ErrorAction SilentlyContinue
-    if ($awsCommand) {
+    if (Get-Command aws -ErrorAction SilentlyContinue) {
         Write-Host "AWS CLI is already installed:"
-        & $awsCommand.Source --version
+        aws --version
         $configure = Read-Host "Would you like to reconfigure AWS? (y/N)"
         if ($configure -ne "y") {
             return
@@ -32,88 +29,39 @@ function Install-AWS {
         Write-Host "Installing AWS CLI..."
         Start-Process msiexec.exe -Args "/i $msiFile /quiet" -Wait
         Remove-Item $msiFile -Force
-        
-        # Refresh environment paths
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
+        # Wait a few seconds to ensure installation completes
+        Start-Sleep -Seconds 5
+        # Force PowerShell to reload environment variables without restarting
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
                     [System.Environment]::GetEnvironmentVariable("Path", "User")
-        
-        # Additional paths where AWS CLI might be installed
-        $potentialPaths = @(
-            "${env:ProgramFiles}\Amazon\AWSCLIV2\aws.exe",
-            "${env:ProgramFiles(x86)}\Amazon\AWSCLIV2\aws.exe",
-            "${env:ProgramFiles}\Amazon\AWSCLI\aws.exe",
-            "${env:ProgramFiles(x86)}\Amazon\AWSCLI\aws.exe"
-        )
-        
-        # Wait and verify installation
-        $maxAttempts = 3
-        $attempt = 0
-        $awsFound = $false
-        
+        # Verify AWS CLI installation
         Write-Host "Verifying AWS CLI installation..."
-        while ($attempt -lt $maxAttempts -and -not $awsFound) {
-            $attempt++
-            
-            # Try finding AWS in PATH first
-            $awsCommand = Get-Command aws -ErrorAction SilentlyContinue
-            if ($awsCommand) {
-                $awsFound = $true
-                Write-Host "AWS CLI found in PATH: $($awsCommand.Source)"
-                & $awsCommand.Source --version
-                break
-            }
-            
-            # Check potential direct paths
-            foreach ($path in $potentialPaths) {
-                if (Test-Path $path) {
-                    $awsFound = $true
-                    Write-Host "AWS CLI found at: $path"
-                    & $path --version
-                    # Add to PATH for current session
-                    $env:Path += ";$(Split-Path $path)"
-                    break
-                }
-            }
-            
-            if (-not $awsFound) {
-                Write-Host "Attempt $attempt: Waiting for AWS CLI to become available..."
-                Start-Sleep -Seconds 5
-            }
-        }
-        
-        if (-not $awsFound) {
-            throw "AWS CLI installation could not be verified after $maxAttempts attempts"
-        }
+        aws --version
     }
-    
     Write-Host "`nConfiguring AWS CLI..."
     $accessKey = Read-Host "AWS Access Key ID"
     $secretKey = Read-Host "AWS Secret Access Key"
-    $region = "eu-west-2"  # Hardcoded as per your script
-    
     if ([string]::IsNullOrWhiteSpace($accessKey) -or 
         [string]::IsNullOrWhiteSpace($secretKey)) {
         throw "Access key and secret key are required"
     }
-    
     # Configure AWS CLI
     aws configure set aws_access_key_id $accessKey
     aws configure set aws_secret_access_key $secretKey
-    aws configure set region $region
+    aws configure set region eu-west-2
     aws configure set output json
-    
     # Verify configuration
     try {
         $verifyConfig = aws sts get-caller-identity 2>&1
         if ($verifyConfig -match "error" -or [string]::IsNullOrWhiteSpace($verifyConfig)) {
-            Write-Host "Failed to verify AWS configuration" -ForegroundColor Red
+            Write-Host "Failed to verify AWS configuration"
         }
         else {
             Write-Host "`nAWS CLI configured successfully!" -ForegroundColor Green
         }
     }
     catch {
-        Write-Host "Error verifying AWS configuration: $_" -ForegroundColor Red
+        Write-Error $_
     }
 }
 # AWS Functions
