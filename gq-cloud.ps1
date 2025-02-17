@@ -40,7 +40,7 @@ function Install-AWS {
         Remove-Item $msiFile -Force
 
         # Wait a few seconds to ensure installation completes
-        Start-Sleep -Seconds 10  # Increased wait time for installation
+        Start-Sleep -Seconds 5
 
         # Force PowerShell to reload environment variables without restarting
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
@@ -48,23 +48,7 @@ function Install-AWS {
 
         # Verify AWS CLI installation
         Write-Host "Verifying installation..."
-        $awsPaths = @(
-            "C:\Program Files\Amazon\AWSCLIV2\aws.exe",
-            "C:\Program Files (x86)\Amazon\AWSCLIV2\aws.exe"
-        )
-
-        $awsFound = $false
-        foreach ($awsPath in $awsPaths) {
-            if (Test-Path $awsPath) {
-                & $awsPath --version
-                $awsFound = $true
-                break
-            }
-        }
-
-        if (-not $awsFound) {
-            Write-Host "AWS CLI installation could not be verified. Please try restarting PowerShell." -ForegroundColor Yellow
-        }
+        aws --version
     }
 
     Write-Host "`nConfiguring..."
