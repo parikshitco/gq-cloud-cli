@@ -25,6 +25,8 @@ install_and_configure_aws() {
         echo "Environment is already up:"
         if aws --version >/dev/null 2>&1; then
             echo "Suitable version found"
+        else
+            echo "Error: Correct version not found"
         fi
     else
         echo "Setting up environment..."
@@ -67,7 +69,7 @@ install_and_configure_aws() {
     # AWS Configuration
     if [[ -f ~/.aws/credentials ]] && aws sts get-caller-identity &> /dev/null; then
         echo -e "\nExisting configuration found and verified:"
-        aws sts get-caller-identity
+        aws sts get-caller-identity >/dev/null 2>&1
         read -p "Would you like to create a new configuration? (y/N): " create_new
         if [[ ! "$create_new" =~ ^[Yy]$ ]]; then
             echo "Keeping existing configuration"
