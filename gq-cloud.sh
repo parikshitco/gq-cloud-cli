@@ -83,6 +83,7 @@ install_and_configure_aws() {
         echo "Error: Access key and secret key are required"
         exit 1
     fi
+
     
     aws configure set aws_access_key_id "$aws_access_key"
     aws configure set aws_secret_access_key "$aws_secret_key"
