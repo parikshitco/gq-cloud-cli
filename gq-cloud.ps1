@@ -32,28 +32,34 @@ function Install-AWS {
         }
     }
     else {
-        Write-Host "Downloading installer..."
-        Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
-        
-        Write-Host "Installing..."
-        Start-Process msiexec.exe -Args "/i $msiFile /quiet" -Wait
-        Remove-Item $msiFile -Force
+    Write-Host "Downloading installer..."
+    Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
+    
+    Write-Host "Installing..."
+    Start-Process msiexec.exe -Args "/i $msiFile /quiet" -Wait
+    Remove-Item $msiFile -Force
 
-        # Wait for installation and refresh PATH
-        Start-Sleep -Seconds 10
+    # Wait for installation and refresh PATH
+    Start-Sleep -Seconds 10
 
-        # Verify AWS CLI installation
-        Write-Host "Verifying installation..."
-        $awsExePath = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
-        
-        if (Test-Path $awsExePath) {
-            & $awsExePath --version
-        }
-        else {
-            Write-Host "AWS CLI installation failed to verify. Please restart PowerShell and try again." -ForegroundColor Red
-            throw "AWS CLI installation verification failed"
-        }
+    # Force PowerShell to reload environment variables without restarting
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
+                [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+    # Verify AWS CLI installation
+    Write-Host "Verifying installation..."
+    $awsExePath = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
+
+    if (Test-Path $awsExePath) {
+        Write-Host "AWS CLI Installed Successfully!" -ForegroundColor Green
+        aws --version
+    }
+    else {
+        Write-Host "AWS CLI installation failed to verify. Please restart PowerShell and try again." -ForegroundColor Red
+        throw "AWS CLI installation verification failed"
+    }
 }
+
 
     Write-Host "`nConfiguring..."
     $accessKey = Read-Host "Access Key ID"
