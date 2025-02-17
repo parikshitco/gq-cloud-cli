@@ -8,96 +8,140 @@ param(
     [switch]$h
 )
 
+function Update-EnvironmentVariables {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
+                [System.Environment]::GetEnvironmentVariable("Path", "User")
+}
+
+function Test-AWSCLIInstallation {
+    try {
+        $awsVersion = aws --version
+        return $true
+    }
+    catch {
+        return $false
+    }
+}
+
 # AWS Functions
 function Install-AWS {
     Write-Host "Setting up environment..."
     
     $msiFile = Join-Path $env:TEMP "AWSCLIV2.msi"
     $installerUrl = "https://awscli.amazonaws.com/AWSCLIV2.msi"
-
-    # Check if AWS CLI is already installed
-    if (Get-Command aws -ErrorAction SilentlyContinue) {
-        Write-Host "Environment is already installed:"
-        $awsVersion = aws --version 2>&1
-
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Failed to check the version." -ForegroundColor Red
-            exit 1
-        } else {
-            Write-Host "Found suitable version." -ForegroundColor Green
-        }
-        $configure = Read-Host "Would you like to reconfigure environment? (y/N)"
-        if ($configure -ne "y") {
-            return
-        }
-    }
-    else {
-    Write-Host "Downloading installer..."
-    Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
     
-    Write-Host "Installing..."
-    Start-Process msiexec.exe -Args "/i $msiFile /quiet" -Wait
-    Remove-Item $msiFile -Force
-
-    # Wait for installation and refresh PATH
-    Start-Sleep -Seconds 10
-
-    # Force PowerShell to reload environment variables without restarting
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + 
-                [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-    # Verify AWS CLI installation
-    Write-Host "Verifying installation..."
-    $awsExePath = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
-
-    if (Test-Path $awsExePath) {
-        Write-Host "AWS CLI Installed Successfully!" -ForegroundColor Green
-        aws --version
-    }
-    else {
-        Write-Host "AWS CLI installation failed to verify. Please restart PowerShell and try again." -ForegroundColor Red
-        throw "AWS CLI installation verification failed"
-    }
-}
-
-
-    Write-Host "`nConfiguring..."
-    $accessKey = Read-Host "Access Key ID"
-    $secretKey = Read-Host "Secret Access Key"
-
-    # Validate inputs
-    if ([string]::IsNullOrWhiteSpace($accessKey) -or 
-        [string]::IsNullOrWhiteSpace($secretKey)) {
-        Write-Host "Error: Access key and secret key are required" -ForegroundColor Red
-        exit 1
-    }
-
-    # Configure AWS CLI
-    aws configure set aws_access_key_id $accessKey
-    aws configure set aws_secret_access_key $secretKey
-    aws configure set region eu-west-2
-    aws configure set output json
-
-    # Verify AWS configuration
-    try {
-        $verifyConfig = aws sts get-caller-identity 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error: AWS configuration failed!" -ForegroundColor Red
-            Write-Host $verifyConfig
+    # Check if AWS CLI is already installed
+    if (Test-AWSCLIInstallation) {
+        Write-Host "Environment is already up:" -ForegroundColor Green
+        $awsVersion = aws --version
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Suitable version found" -ForegroundColor Green
+        } else {
+            Write-Host "Error: Correct version not found" -ForegroundColor Red
             exit 1
         }
-        else {
-            Write-Host "`nEnvironment configured successfully!" -ForegroundColor Green
+    } else {
+        # Installation process remains the same as your working version
+        try {
+            Write-Host "Downloading AWS CLI installer..." -ForegroundColor Yellow
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $installerUrl -OutFile $msiFile
+            
+            if (!(Test-Path $msiFile)) {
+                throw "Failed to download installer"
+            }
+            
+            Write-Host "Installing AWS CLI..." -ForegroundColor Yellow
+            $process = Start-Process msiexec.exe -ArgumentList "/i `"$msiFile`" /quiet /norestart" -Wait -PassThru
+            
+            if ($process.ExitCode -ne 0) {
+                throw "Installation failed with exit code: $($process.ExitCode)"
+            }
+            
+            Remove-Item $msiFile -Force -ErrorAction SilentlyContinue
+            Update-EnvironmentVariables
+            Start-Sleep -Seconds 10
+            
+            if (Test-AWSCLIInstallation) {
+                Write-Host "✓ Installed successfully!" -ForegroundColor Green
+                $awsVersion = aws --version
+                Write-Host "Installed version: $awsVersion" -ForegroundColor Green
+            } else {
+                throw "✗ Installation failed"
+            }
+        }
+        catch {
+            Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "AWS CLI installation failed" -ForegroundColor Red
+            exit 1
         }
     }
-    catch {
-        Write-Host "Error: AWS configuration verification failed!" -ForegroundColor Red
-        Write-Host $_.Exception.Message
-        exit 1
+
+    # Enhanced AWS Configuration Check
+    $credentialsPath = Join-Path $env:USERPROFILE ".aws\credentials"
+    $configValid = $false
+
+    if (Test-Path $credentialsPath) {
+        try {
+            $callerIdentity = aws sts get-caller-identity 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $configValid = $true
+                Write-Host "`nExisting configuration found and verified:" -ForegroundColor Green
+                Write-Host $callerIdentity -ForegroundColor Gray
+                $createNew = Read-Host "Would you like to create a new configuration? (y/N)"
+                if ($createNew -ne "y") {
+                    Write-Host "Keeping existing configuration" -ForegroundColor Green
+                    return
+                }
+            }
+        }
+        catch {
+            # Credentials exist but are invalid
+            Write-Host "Existing credentials found but they appear to be invalid" -ForegroundColor Yellow
+        }
     }
 
+    if (-not $configValid) {
+        Write-Host "`nConfiguring..." -ForegroundColor Yellow
+        
+        # Ensure .aws directory exists
+        $awsDir = Join-Path $env:USERPROFILE ".aws"
+        if (-not (Test-Path $awsDir)) {
+            New-Item -ItemType Directory -Path $awsDir -Force | Out-Null
+        }
 
+        $accessKey = Read-Host "Access Key ID"
+        $secretKey = Read-Host "Secret Access Key"
+
+        if ([string]::IsNullOrWhiteSpace($accessKey) -or 
+            [string]::IsNullOrWhiteSpace($secretKey)) {
+            Write-Host "Error: Access key and secret key are required" -ForegroundColor Red
+            exit 1
+        }
+
+        aws configure set aws_access_key_id $accessKey
+        aws configure set aws_secret_access_key $secretKey
+        aws configure set region eu-west-2
+        aws configure set output json
+
+        try {
+            $verifyConfig = aws sts get-caller-identity
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✓ Configured successfully!" -ForegroundColor Green
+                Write-Host $verifyConfig -ForegroundColor Gray
+            } else {
+                Write-Host "✗ Configuration verification failed" -ForegroundColor Red
+                exit 1
+            }
+        }
+        catch {
+            Write-Host "✗ Configuration verification failed" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
+            exit 1
+        }
+    }
 } # Closing brace for Install-AWS function
+
 
 function Uninstall-AWS {
     Write-Host "Removing environment..."
