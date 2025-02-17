@@ -65,7 +65,7 @@ function Install-AWS {
             if (Test-AWSCLIInstallation) {
                 Write-Host "Installed successfully!" -ForegroundColor Green
                 $awsVersion = aws --version
-                Write-Host "Installed version: $awsVersion" -ForegroundColor Green
+                # Write-Host "Installed version: $awsVersion" -ForegroundColor Green
             } else {
                 throw "Installation failed"
             }
@@ -128,7 +128,7 @@ function Install-AWS {
             $verifyConfig = aws sts get-caller-identity
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "Configured successfully!" -ForegroundColor Green
-                Write-Host $verifyConfig -ForegroundColor Gray
+                # Write-Host $verifyConfig -ForegroundColor Gray
             } else {
                 Write-Host "Configuration verification failed" -ForegroundColor Red
                 exit 1
